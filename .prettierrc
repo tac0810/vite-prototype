@@ -1,0 +1,6 @@
+{
+	"printWidth": 100,
+	"order": "smacss",
+	"keepOverrides": false,
+	"tailwindConfig": "./tailwind.config.js"
+}
