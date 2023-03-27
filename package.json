@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/node": "^18.11.18",
+    "@types/three": "^0.149.0",
     "autoprefixer": "^10.4.13",
     "postcss": "^8.4.20",
     "tailwindcss": "^3.2.4",
@@ -20,6 +21,7 @@
     "@alpinejs/ui": "^3.10.5-beta.8",
     "alpinejs": "^3.10.5",
     "camelcase": "^7.0.1",
-    "gsap": "^3.11.4"
+    "gsap": "^3.11.5",
+    "three": "^0.150.1"
   }
 }
