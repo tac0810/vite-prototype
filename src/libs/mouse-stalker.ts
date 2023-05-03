@@ -1,136 +1,149 @@
-function mouseStalker({
-	stage,
-	dampingFactor = 0.05,
-	onUpdate,
-	updatePointManually = false,
-	updateRectManually = false,
-}) {
-	const IS_TOUCH_DEVICE = navigator.maxTouchPoints || "ontouchstart" in document.documentElement;
+import { gsap } from "gsap";
+import setup from "../three/setup";
+import particle from "../three/modules/particles";
+import background from "../three/modules/background";
+import cards from "../three/modules/cards";
+import mouseStalker from "../libs/mouse-stalker";
+import { sleep } from "../libs/_utils";
 
-	let x = 0;
-	let y = 0;
-	let dx = 0;
-	let dy = 0;
-	let requestId = null;
-	let stageRect = stage.getBoundingClientRect();
+export default ({ assetsPath, data }) => {
+	const CHANGE_INTERVAL = 7000;
+	const INSTANCES = 120;
+	const SIZE = 40;
 
-	// private
-	// ------------------------------
-	function _clamp(val, min = -1, max = 1) {
-		return Math.max(min, Math.min(val, max));
-	}
-
-	function _updatePoint(_x, _y) {
-		stageRect = stage.getBoundingClientRect();
-		x = _clamp(((_x - stageRect.x) / stageRect.width) * 2 - 1);
-		y = _clamp(((_y - stageRect.y) / stageRect.height) * 2 - 1);
-	}
-
-	function _mouseMoving(e) {
-		_updatePoint(e.x, e.y);
-	}
-
-	function _updateStageRect() {
-		stageRect = stage.getBoundingClientRect();
-	}
-
-	function _render() {
-		dx += (x - dx) * dampingFactor;
-		dy += (y - dy) * dampingFactor;
-
-		onUpdate({
-			dx,
-			dy,
-			x,
-			y,
-		});
-
-		if (requestId) cancelAnimationFrame(requestId);
-		requestId = requestAnimationFrame(_render);
-	}
-
-	// public
-	// ------------------------------
-	const updateMouseMoving = (_x, _y) => {
-		_updatePoint(_x, _y);
-	};
-
-	const updateStageRect = () => {
-		_updateStageRect();
-	};
-
-	const start = () => {
-		if (IS_TOUCH_DEVICE) {
-			return;
-		}
-		requestId = requestAnimationFrame(_render);
-	};
-
-	const stop = () => {
-		if (IS_TOUCH_DEVICE) {
-			return;
-		}
-		if (requestId) cancelAnimationFrame(requestId);
-	};
-
-	const io = new IntersectionObserver((entries) => {
-		const entry = entries[0];
-		if (entry.isIntersecting) {
-			start();
-		} else {
-			stop();
-		}
-	});
-	const ro = new ResizeObserver(_updateStageRect);
-
-	const mount = () => {
-		if (IS_TOUCH_DEVICE) {
-			return;
-		}
-
-		if (!updatePointManually) {
-			stage.addEventListener("mousemove", _mouseMoving);
-		}
-
-		if (!updateRectManually) {
-			window.addEventListener("scroll", _updateStageRect);
-		}
-
-		io.observe(stage);
-		ro.observe(stage);
-	};
-
-	const dismount = () => {
-		if (IS_TOUCH_DEVICE) {
-			return;
-		}
-
-		x = 0;
-		y = 0;
-		dx = 0;
-		dy = 0;
-		stop();
-
-		if (!updatePointManually) {
-			stage.removeEventListener("mousemove", _mouseMoving);
-		}
-
-		if (!updateRectManually) {
-			window.removeEventListener("scroll", _updateStageRect);
-		}
-
-		io.disconnect();
-		ro.disconnect();
-	};
+	let three = null;
+	let ms = null;
 
 	return {
-		start,
-		stop,
-		mount,
-		dismount,
-		updateMouseMoving,
-		updateStageRect,
-	};
-}
+		hover: false,
+		focus: false,
+		action: false,
+		index: 1,
+		total: 1,
+		init() {
+			const root = this.$root;
+			const indicator = this.$refs.indicator;
 
-export default mouseStalker;
+			this.total = data.length;
+
+			ms = mouseStalker({
+				stage: root,
+				dampingFactor: 0.05,
+				onUpdate: (data) => {
+					root.style.setProperty("--delta-x", data.dx);
+					root.style.setProperty("--delta-y", data.dy);
+				},
+				onEnter: () => {
+					if (!this.action) {
+						return;
+					}
+					this.active = true;
+				},
+				onLeave: () => {
+					if (!this.action) {
+						return;
+					}
+					this.active = false;
+				},
+				updatePointManually: true,
+			});
+
+			three = setup({
+				assetsPath,
+				stage: this.$refs.stage,
+				root,
+				modules: [
+					background(),
+					particle({
+						instances: INSTANCES,
+						size: SIZE,
+					}),
+					cards({
+						data,
+						changeInterval: CHANGE_INTERVAL,
+						renderCallback: (intersects) => {
+							this.hover = Boolean(intersects.length);
+							if (this.focus) {
+								ms.updateMouseMoving(
+									this.$root.scrollWidth * 0.75,
+									this.$root.scrollHeight * 0.5 - window.scrollY
+								);
+							}
+						},
+					}),
+				],
+			});
+
+			let tween = null;
+
+			function stopTimer() {
+				if (tween) tween.kill();
+			}
+			function startTimer() {
+				if (tween) tween.kill();
+				const proxy = {
+					t: 0,
+				};
+				tween = gsap.to(proxy, {
+					t: 1,
+					duration: CHANGE_INTERVAL / 1000,
+					overwrite: true,
+					ease: "none",
+					onUpdate() {
+						indicator.style.setProperty("--indicator-progress", proxy.t);
+					},
+				});
+			}
+
+			root.addEventListener("cards:init", () => {
+				this.$dispatch("webgl:init");
+			});
+			root.addEventListener("card:focus", ({ detail }) => {
+				const { data, currentIndex } = detail;
+				this.focus = true;
+				this.$refs.stalker.setAttribute("href", data.href);
+				this.$refs.button.setAttribute("href", data.href);
+				ms.updateMouseMoving(Math.min(1440, root.scrollWidth) * 0.75, root.scrollHeight * 0.5);
+				startTimer();
+
+				this.index = currentIndex + 1;
+			});
+			root.addEventListener("card:blur", () => {
+				this.focus = false;
+				this.$refs.stalker.removeAttribute("href");
+				this.$refs.button.removeAttribute("href");
+				stopTimer();
+			});
+
+			root.addEventListener("card:change", ({ detail }) => {
+				const { nextIndex } = detail;
+
+				this.index = nextIndex + 1;
+
+				stopTimer();
+				startTimer();
+			});
+
+			three.mount();
+
+			ms.mount();
+		},
+
+		active: false,
+		onMouseMove(e) {
+			if (!this.focus) {
+				ms.updateMouseMoving(e.x, e.y);
+			}
+		},
+		onClick(e) {
+			three && three.click(e);
+		},
+
+		async onAction() {
+			three.action();
+			await sleep(2900);
+			this.action = true;
+			this.active = true;
+		},
+	};
+};
