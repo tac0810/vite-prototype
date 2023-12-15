@@ -10,6 +10,9 @@ import {
 	WebGLRenderer
 } from "three"
 
+import vertexShader from '../glsl/vertexShader.glsl'
+import fragmentShader from '../glsl/fragmentShader.glsl'
+
 export default () => {
 	let requestId;
 	let scene!: Scene;
