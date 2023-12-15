@@ -4,7 +4,7 @@ import {
 	PlaneGeometry,
 	RawShaderMaterial,
 	Scene,
-	sRGBEncoding,
+	SRGBColorSpace,
 	Uniform,
 	Vector2,
 	WebGLRenderer
@@ -44,7 +44,7 @@ export default () => {
 		renderer.setSize(window.innerWidth, window.innerHeight);
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 		renderer.info.autoReset = false;
-		renderer.outputEncoding = sRGBEncoding;
+		renderer.outputColorSpace = SRGBColorSpace;
 
 		// material = new RawShaderMaterial({
 		//   vertexShader,
