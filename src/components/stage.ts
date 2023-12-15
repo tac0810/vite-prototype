@@ -6,10 +6,12 @@ export default () => {
 	return {
 		init() {
 			stage.setup(this.$root);
-			const ro = new ResizeObserver(() => {
+
+			window.addEventListener("resize", () => {
 				stage.resize();
 			});
-			ro.observe(this.$root);
+
+			stage.resize();
 			stage.start();
 		},
 	};
